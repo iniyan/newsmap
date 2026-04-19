@@ -6,16 +6,13 @@ const engagement = new Map();
 
 // --- Filters ---
 const JUNK_PATTERNS = [
-  /சிறுகதை/,         // short story
-  /மினி தொடர்கதை/,  // mini serial story
-  /தொடர்கதை/,       // serial story
-  /புதினம்/,         // novel
-  /கவிதை/,          // poem
-  /puzzle/i,
-  /crossword/i,
-  /horoscope/i,
-  /ராசிபலன்/,        // horoscope
-  /ஜோதிடம்/,
+  // Tamil fiction / astrology
+  /சிறுகதை/, /மினி தொடர்கதை/, /தொடர்கதை/, /புதினம்/, /கவிதை/,
+  /ராசிபலன்/, /ஜோதிடம்/,
+  // Generic
+  /puzzle/i, /crossword/i, /horoscope/i, /sudoku/i,
+  /sponsored/i, /advertisement/i, /subscribe now/i,
+  /terms of service/i, /privacy policy/i,
 ];
 
 function isJunk(headline, summary) {
