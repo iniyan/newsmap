@@ -32,7 +32,7 @@ async function ingestFeed(feed, force = false) {
     const processed = [];
     for (const item of items) {
       const event = await processArticle(item, feed.id);
-      processed.push(event);
+      if (event) processed.push(event); // null = location could not be determined, skip
       await sleep(1000);
     }
 

@@ -160,26 +160,110 @@ const COUNTRY_BOUNDS = {
   'Ukraine':      { latMin: 44.4, latMax: 52.4, lngMin: 22.1, lngMax: 40.2,  fallback: { lat: 50.4501, lng: 30.5234 } },
 };
 
-function validateCoords(lat, lng, country) {
+// A coord is "safe" only if it's a real, land-ish point — not null-island,
+// not on the prime-meridian strip (lng ≈ 0) that creates the vertical dot line.
+function isPlausibleCoord(lat, lng) {
   if (typeof lat !== 'number' || typeof lng !== 'number') return false;
   if (isNaN(lat) || isNaN(lng)) return false;
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false;
-  // Explicitly reject null island (0,0) and the prime meridian strip that causes the vertical line
-  if (Math.abs(lat) < 1 && Math.abs(lng) < 1) return false;
-  // Reject anything with lng exactly 0 — almost certainly a missing value
-  if (lng === 0) return false;
+  // Reject the whole prime-meridian corridor (−2 < lng < 2) — nearly no news cities live there
+  // and this is exactly where the AI puts "I don't know" guesses.
+  if (lng > -2 && lng < 2) return false;
+  // Also reject null-island neighbourhood
+  if (Math.abs(lat) < 2 && Math.abs(lng) < 2) return false;
+  return true;
+}
+
+function validateCoords(lat, lng, country) {
+  if (!isPlausibleCoord(lat, lng)) return false;
   const bounds = COUNTRY_BOUNDS[country];
   if (bounds) {
     return lat >= bounds.latMin && lat <= bounds.latMax &&
            lng >= bounds.lngMin && lng <= bounds.lngMax;
   }
-  // No bounds for this country — still valid as long as it passed the above checks
   return true;
 }
 
+// Extended country→capital table used when COUNTRY_BOUNDS has no entry
+const COUNTRY_CAPITALS = {
+  'Afghanistan': { lat: 34.5553, lng: 69.2075 },
+  'Albania': { lat: 41.3275, lng: 19.8187 },
+  'Algeria': { lat: 36.7538, lng: 3.0588 },
+  'Argentina': { lat: -34.6037, lng: -58.3816 },
+  'Bangladesh': { lat: 23.8103, lng: 90.4125 },
+  'Belgium': { lat: 50.8503, lng: 4.3517 },
+  'Bolivia': { lat: -16.5000, lng: -68.1500 },
+  'Cambodia': { lat: 11.5564, lng: 104.9282 },
+  'Chile': { lat: -33.4489, lng: -70.6693 },
+  'Colombia': { lat: 4.7110, lng: -74.0721 },
+  'Cuba': { lat: 23.1136, lng: -82.3666 },
+  'Czech Republic': { lat: 50.0755, lng: 14.4378 },
+  'Denmark': { lat: 55.6761, lng: 12.5683 },
+  'Ecuador': { lat: -0.1807, lng: -78.4678 },
+  'Ethiopia': { lat: 9.0320, lng: 38.7421 },
+  'Finland': { lat: 60.1699, lng: 24.9384 },
+  'Gaza': { lat: 31.3547, lng: 34.3088 },
+  'Ghana': { lat: 5.6037, lng: -0.1870 },
+  'Greece': { lat: 37.9838, lng: 23.7275 },
+  'Hungary': { lat: 47.4979, lng: 19.0402 },
+  'Indonesia': { lat: -6.2088, lng: 106.8456 },
+  'Iraq': { lat: 33.3152, lng: 44.3661 },
+  'Ireland': { lat: 53.3498, lng: -6.2603 },
+  'Israel': { lat: 31.7683, lng: 35.2137 },
+  'Italy': { lat: 41.9028, lng: 12.4964 },
+  'Jordan': { lat: 31.9566, lng: 35.9456 },
+  'Kazakhstan': { lat: 51.1801, lng: 71.4460 },
+  'Kenya': { lat: -1.2921, lng: 36.8219 },
+  'Kuwait': { lat: 29.3759, lng: 47.9774 },
+  'Lebanon': { lat: 33.8938, lng: 35.5018 },
+  'Libya': { lat: 32.9022, lng: 13.1806 },
+  'Malaysia': { lat: 3.1390, lng: 101.6869 },
+  'Mexico': { lat: 19.4326, lng: -99.1332 },
+  'Morocco': { lat: 34.0209, lng: -6.8416 },
+  'Myanmar': { lat: 19.7633, lng: 96.0785 },
+  'Nepal': { lat: 27.7172, lng: 85.3240 },
+  'Netherlands': { lat: 52.3676, lng: 4.9041 },
+  'New Zealand': { lat: -41.2865, lng: 174.7762 },
+  'Nigeria': { lat: 9.0765, lng: 7.3986 },
+  'North Korea': { lat: 39.0392, lng: 125.7625 },
+  'Norway': { lat: 59.9139, lng: 10.7522 },
+  'Palestine': { lat: 31.9522, lng: 35.2332 },
+  'Peru': { lat: -12.0464, lng: -77.0428 },
+  'Philippines': { lat: 14.5995, lng: 120.9842 },
+  'Poland': { lat: 52.2297, lng: 21.0122 },
+  'Portugal': { lat: 38.7169, lng: -9.1399 },
+  'Qatar': { lat: 25.2854, lng: 51.5310 },
+  'Romania': { lat: 44.4268, lng: 26.1025 },
+  'Saudi Arabia': { lat: 24.6877, lng: 46.7219 },
+  'Serbia': { lat: 44.8176, lng: 20.4633 },
+  'Singapore': { lat: 1.3521, lng: 103.8198 },
+  'Somalia': { lat: 2.0469, lng: 45.3182 },
+  'South Africa': { lat: -25.7479, lng: 28.2293 },
+  'Spain': { lat: 40.4168, lng: -3.7038 },
+  'Sudan': { lat: 15.5007, lng: 32.5599 },
+  'Sweden': { lat: 59.3293, lng: 18.0686 },
+  'Switzerland': { lat: 46.9480, lng: 7.4474 },
+  'Syria': { lat: 33.5138, lng: 36.2765 },
+  'Taiwan': { lat: 25.0320, lng: 121.5654 },
+  'Thailand': { lat: 13.7563, lng: 100.5018 },
+  'Tunisia': { lat: 36.8065, lng: 10.1815 },
+  'Turkey': { lat: 39.9334, lng: 32.8597 },
+  'UAE': { lat: 24.4539, lng: 54.3773 },
+  'United Arab Emirates': { lat: 24.4539, lng: 54.3773 },
+  'Venezuela': { lat: 10.4806, lng: -66.9036 },
+  'Vietnam': { lat: 21.0285, lng: 105.8542 },
+  'Yemen': { lat: 15.5527, lng: 48.5164 },
+  'Zimbabwe': { lat: -17.8252, lng: 31.0335 },
+};
+
 function snapToCountry(country) {
   const bounds = COUNTRY_BOUNDS[country];
-  return bounds ? bounds.fallback : { lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng };
+  if (bounds) return bounds.fallback;
+  const cap = COUNTRY_CAPITALS[country];
+  if (cap) return cap;
+  // Unknown country — use geographic centre of the article's source region
+  // instead of DEFAULT_LOCATION (which is near lng:0)
+  return null; // caller must handle null
 }
 
 function fallbackLocation(title, description) {
@@ -187,11 +271,8 @@ function fallbackLocation(title, description) {
   for (const [keyword, location] of Object.entries(LOCATION_DB)) {
     if (text.includes(keyword.toLowerCase())) return location;
   }
-  return {
-    ...DEFAULT_LOCATION,
-    lat: DEFAULT_LOCATION.lat + (Math.random() - 0.5) * 2,
-    lng: DEFAULT_LOCATION.lng + (Math.random() - 0.5) * 2,
-  };
+  // Cannot determine location — return null so caller can decide to drop the article
+  return null;
 }
 
 function fallbackCategory(title, description) {
@@ -250,27 +331,34 @@ Respond with ONLY this JSON (no markdown fences):
   if (!match) throw new Error('No JSON in response');
   const parsed = JSON.parse(match[0]);
 
-  const country = parsed.country || DEFAULT_LOCATION.country;
+  const country = parsed.country || '';
   const lat = typeof parsed.lat === 'number' ? parsed.lat : null;
   const lng = typeof parsed.lng === 'number' ? parsed.lng : null;
 
-  // Snap bad/sea coordinates back to country capital
   let finalLat, finalLng;
   if (lat !== null && lng !== null && validateCoords(lat, lng, country)) {
+    // AI gave us good coords
     finalLat = lat;
     finalLng = lng;
   } else {
+    // Bad coords — try snapping to country capital
     const snapped = snapToCountry(country);
-    finalLat = snapped.lat;
-    finalLng = snapped.lng;
-    console.warn(`[AI] Bad coords (${lat},${lng}) for ${country} — snapped to capital`);
+    if (snapped && isPlausibleCoord(snapped.lat, snapped.lng)) {
+      finalLat = snapped.lat;
+      finalLng = snapped.lng;
+      console.warn(`[AI] Bad coords (${lat},${lng}) for "${country}" — snapped to capital`);
+    } else {
+      // Country unknown or capital also bad — return null so processArticle uses keyword fallback
+      console.warn(`[AI] Cannot determine coords for "${country}" — falling back to keyword search`);
+      return null;
+    }
   }
 
   return {
     location: {
-      city: parsed.city || DEFAULT_LOCATION.city,
-      state: parsed.state || DEFAULT_LOCATION.state,
-      country,
+      city: parsed.city || country || 'Unknown',
+      state: parsed.state || '',
+      country: country || 'Unknown',
       lat: finalLat,
       lng: finalLng,
     },
@@ -379,16 +467,16 @@ async function processArticle(article, sourceId) {
     console.log(`[image] OG scraped for "${title.slice(0, 40)}"`);
   }
 
+  // Keyword fallback if AI gave no location
   if (!location) location = fallbackLocation(title, description);
   if (!category) category = fallbackCategory(title, description);
   if (!summary) summary = description.split(' ').slice(0, 60).join(' ') || title;
 
-  // Hard guard: if coordinates are still on the prime meridian (lng ≈ 0) or null-island,
-  // force fallback so we never plot that vertical line of dots on the map
-  if (Math.abs(location.lng) < 1 || location.lng === 0) {
-    const forced = fallbackLocation(title, description);
-    location = forced;
-    console.warn(`[coords] Forced fallback for "${title.slice(0, 40)}" — bad lng ${location.lng}`);
+  // FINAL GUARD: if we still have no plausible location, DROP this article entirely.
+  // Better to show fewer pins than a line of wrong dots on the map.
+  if (!location || !isPlausibleCoord(location.lat, location.lng)) {
+    console.warn(`[coords] DROPPED article — no plausible location: "${title.slice(0, 50)}"`);
+    return null;
   }
 
   return {
