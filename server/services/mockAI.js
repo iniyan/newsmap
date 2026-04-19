@@ -1,6 +1,13 @@
 const Groq = require('groq-sdk');
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// Defer client creation so missing key doesn't crash on import
+let groq = null;
+function getGroq() {
+  if (!groq && process.env.GROQ_API_KEY) {
+    groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  }
+  return groq;
+}
 const MODEL = 'llama-3.3-70b-versatile';
 
 const LOCATION_DB = {
@@ -78,7 +85,7 @@ function fallbackCategory(title, description) {
 async function extractWithAI(title, description) {
   const text = `${title}\n${description}`.slice(0, 600);
 
-  const completion = await groq.chat.completions.create({
+  const completion = await getGroq().chat.completions.create({
     model: MODEL,
     temperature: 0.1,
     max_tokens: 256,
@@ -134,7 +141,7 @@ async function processArticle(article, sourceId) {
 
   let location, category, summary;
 
-  if (process.env.GROQ_API_KEY) {
+  if (getGroq()) {
     try {
       const aiResult = await extractWithAI(title, description);
       ({ location, category, summary } = aiResult);
