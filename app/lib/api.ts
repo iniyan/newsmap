@@ -16,3 +16,15 @@ export async function fetchEventById(id: string): Promise<NewsEvent> {
   if (!res.ok) throw new Error('Event not found');
   return res.json();
 }
+
+export async function likeEvent(id: string) {
+  const res = await fetch(`${API_URL}/api/events/${id}/like`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to like');
+  return res.json();
+}
+
+export async function bookmarkEvent(id: string) {
+  const res = await fetch(`${API_URL}/api/events/${id}/bookmark`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to bookmark');
+  return res.json();
+}

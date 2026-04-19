@@ -1,6 +1,8 @@
 'use client';
 
-import { NewsEvent } from '@/app/types';
+import { useState } from 'react';
+import { NewsEvent, EventEngagement } from '@/app/types';
+import { likeEvent, bookmarkEvent } from '@/app/lib/api';
 
 const CATEGORY_COLORS: Record<string, string> = {
   Politics: 'bg-red-500',
@@ -21,16 +23,46 @@ const SOURCE_NAMES: Record<string, string> = {
   bbc_tamil: 'BBC Tamil',
 };
 
+function intensityLabel(score: number) {
+  if (score >= 80) return { label: 'Trending', color: 'text-red-400' };
+  if (score >= 60) return { label: 'Active', color: 'text-orange-400' };
+  if (score >= 40) return { label: 'Moderate', color: 'text-yellow-400' };
+  return { label: 'Low', color: 'text-gray-500' };
+}
+
 interface EventDrawerProps {
-  event: NewsEvent | null;
+  event: NewsEvent;
   onClose: () => void;
 }
 
 export default function EventDrawer({ event, onClose }: EventDrawerProps) {
-  if (!event) return null;
+  const [eng, setEng] = useState<EventEngagement>(
+    event.engagement || { views: 0, likes: 0, bookmarks: 0 }
+  );
+  const [liked, setLiked] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
 
   const dot = CATEGORY_COLORS[event.category] || CATEGORY_COLORS.General;
   const timeAgo = getTimeAgo(event.published_at);
+  const { label: intensityText, color: intensityColor } = intensityLabel(event.intensity_score);
+
+  async function handleLike() {
+    if (liked) return;
+    setLiked(true);
+    try {
+      const updated = await likeEvent(event.event_id);
+      setEng(updated);
+    } catch { setLiked(false); }
+  }
+
+  async function handleBookmark() {
+    if (bookmarked) return;
+    setBookmarked(true);
+    try {
+      const updated = await bookmarkEvent(event.event_id);
+      setEng(updated);
+    } catch { setBookmarked(false); }
+  }
 
   return (
     <div className="absolute right-0 top-0 h-full w-full sm:w-[400px] bg-gray-950 border-l border-gray-800 flex flex-col z-10 shadow-2xl">
@@ -52,15 +84,24 @@ export default function EventDrawer({ event, onClose }: EventDrawerProps) {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {/* Thumbnail */}
+        {event.image_url && (
+          <div className="w-full h-44 rounded-lg overflow-hidden bg-gray-900">
+            <img
+              src={event.image_url}
+              alt={event.headline}
+              className="w-full h-full object-cover"
+              onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = 'none'; }}
+            />
+          </div>
+        )}
+
         {/* Headline */}
         <h2 className="text-white font-bold text-lg leading-snug">{event.headline}</h2>
 
         {/* Location + time */}
         <div className="flex items-center gap-3 text-xs text-gray-500">
-          <span>
-            📍 {event.location.city}
-            {event.location.state ? `, ${event.location.state}` : ''}
-          </span>
+          <span>📍 {event.location.city}{event.location.state ? `, ${event.location.state}` : ''}</span>
           <span>·</span>
           <span>🕐 {timeAgo}</span>
         </div>
@@ -69,16 +110,54 @@ export default function EventDrawer({ event, onClose }: EventDrawerProps) {
         <p className="text-gray-300 text-sm leading-relaxed">{event.summary}</p>
 
         {/* Intensity */}
-        <div>
-          <div className="flex justify-between text-xs text-gray-500 mb-1">
-            <span>News Intensity</span>
-            <span>{event.intensity_score}/100</span>
+        <div className="bg-gray-900 rounded-lg p-3 border border-gray-800">
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400 font-semibold">News Intensity</span>
+              <span className={`text-xs font-bold ${intensityColor}`}>{intensityText}</span>
+            </div>
+            <span className="text-xs text-gray-500">{event.intensity_score}/100</span>
           </div>
-          <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+          <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden mb-2">
             <div
               className="h-full rounded-full bg-gradient-to-r from-yellow-500 to-red-500 transition-all"
               style={{ width: `${event.intensity_score}%` }}
             />
+          </div>
+          <p className="text-xs text-gray-600">
+            Based on {event.sources.length} source{event.sources.length > 1 ? 's' : ''}, recency, and reader engagement
+          </p>
+        </div>
+
+        {/* Engagement */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleLike}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all
+              ${liked
+                ? 'bg-red-500/20 border-red-500 text-red-400'
+                : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-red-500 hover:text-red-400'
+              }`}
+          >
+            <span>{liked ? '❤️' : '🤍'}</span>
+            <span>{eng.likes}</span>
+          </button>
+
+          <button
+            onClick={handleBookmark}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all
+              ${bookmarked
+                ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400'
+                : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-yellow-500 hover:text-yellow-400'
+              }`}
+          >
+            <span>{bookmarked ? '🔖' : '📌'}</span>
+            <span>{eng.bookmarks}</span>
+          </button>
+
+          <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600">
+            <span>👁</span>
+            <span>{eng.views} views</span>
           </div>
         </div>
 

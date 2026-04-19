@@ -175,12 +175,26 @@ Respond with ONLY this JSON (no markdown fences):
   };
 }
 
+function extractImage(article) {
+  // Try common RSS image fields
+  if (article.enclosure?.url) return article.enclosure.url;
+  if (article['media:content']?.url) return article['media:content'].url;
+  if (article['media:thumbnail']?.url) return article['media:thumbnail'].url;
+  // Try extracting from content/description HTML
+  const html = article.content || article.summary || '';
+  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  if (match) return match[1];
+  return null;
+}
+
 async function processArticle(article, sourceId) {
   const title = article.title || '';
   const description = (article.contentSnippet || article.content || article.summary || '')
     .replace(/<[^>]+>/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+
+  const imageUrl = extractImage(article);
 
   let location, category, summary;
 
@@ -203,7 +217,8 @@ async function processArticle(article, sourceId) {
     summary,
     category,
     location,
-    intensity_score: Math.floor(Math.random() * 40) + 60,
+    image_url: imageUrl,
+    intensity_score: 50,
     sources: [{ id: sourceId, url: article.link || '', title }],
     published_at: article.pubDate ? new Date(article.pubDate).toISOString() : new Date().toISOString(),
     timeline: [],
