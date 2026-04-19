@@ -108,14 +108,23 @@ export default function NewsMap({ events, selectedEvent, onEventSelect }: NewsMa
     });
   }, [events, clearMarkers, onEventSelect]);
 
-  // Fly to selected event
+  // Fly to selected event; zoom back out when deselected
   useEffect(() => {
-    if (!map.current || !selectedEvent) return;
-    map.current.flyTo({
-      center: [selectedEvent.location.lng, selectedEvent.location.lat],
-      zoom: 10,
-      duration: 1200,
-    });
+    if (!map.current) return;
+    if (selectedEvent) {
+      map.current.flyTo({
+        center: [selectedEvent.location.lng, selectedEvent.location.lat],
+        zoom: 10,
+        duration: 1200,
+      });
+    } else {
+      // Zoom back out to Tamil Nadu overview
+      map.current.flyTo({
+        center: [80.2707, 13.0827],
+        zoom: 5.5,
+        duration: 1000,
+      });
+    }
   }, [selectedEvent]);
 
   return <div ref={mapContainer} className="w-full h-full" />;

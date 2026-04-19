@@ -57,6 +57,33 @@ const DEFAULT_LOCATION = {
   city: 'Chennai', state: 'Tamil Nadu', country: 'India', lat: 13.0827, lng: 80.2707,
 };
 
+// Rough bounding boxes — if AI returns coords outside these, snap to capital
+const COUNTRY_BOUNDS = {
+  'India':    { latMin: 6.5, latMax: 37.5, lngMin: 68.0, lngMax: 97.5, fallback: { lat: 20.5937, lng: 78.9629 } },
+  'Sri Lanka':{ latMin: 5.9, latMax: 9.9,  lngMin: 79.6, lngMax: 81.9, fallback: { lat: 7.8731,  lng: 80.7718 } },
+  'USA':      { latMin: 24.0, latMax: 49.5, lngMin: -125, lngMax: -66,  fallback: { lat: 38.9072, lng: -77.0369 } },
+  'UK':       { latMin: 49.9, latMax: 58.7, lngMin: -8.2, lngMax: 1.8,  fallback: { lat: 51.5074, lng: -0.1278 } },
+  'China':    { latMin: 18.0, latMax: 53.5, lngMin: 73.5, lngMax: 135,  fallback: { lat: 39.9042, lng: 116.4074 } },
+  'Pakistan': { latMin: 23.5, latMax: 37.1, lngMin: 60.9, lngMax: 77.8, fallback: { lat: 33.6844, lng: 73.0479 } },
+  'Iran':     { latMin: 25.0, latMax: 39.8, lngMin: 44.0, lngMax: 63.3, fallback: { lat: 35.6892, lng: 51.3890 } },
+};
+
+function validateCoords(lat, lng, country) {
+  if (typeof lat !== 'number' || typeof lng !== 'number') return false;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false;
+  const bounds = COUNTRY_BOUNDS[country];
+  if (bounds) {
+    return lat >= bounds.latMin && lat <= bounds.latMax &&
+           lng >= bounds.lngMin && lng <= bounds.lngMax;
+  }
+  return true;
+}
+
+function snapToCountry(country) {
+  const bounds = COUNTRY_BOUNDS[country];
+  return bounds ? bounds.fallback : { lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng };
+}
+
 function fallbackLocation(title, description) {
   const text = `${title} ${description}`.toLowerCase();
   for (const [keyword, location] of Object.entries(LOCATION_DB)) {
@@ -119,13 +146,29 @@ Respond with ONLY this JSON (no markdown fences):
   if (!match) throw new Error('No JSON in response');
   const parsed = JSON.parse(match[0]);
 
+  const country = parsed.country || DEFAULT_LOCATION.country;
+  const lat = typeof parsed.lat === 'number' ? parsed.lat : null;
+  const lng = typeof parsed.lng === 'number' ? parsed.lng : null;
+
+  // Snap bad/sea coordinates back to country capital
+  let finalLat, finalLng;
+  if (lat !== null && lng !== null && validateCoords(lat, lng, country)) {
+    finalLat = lat;
+    finalLng = lng;
+  } else {
+    const snapped = snapToCountry(country);
+    finalLat = snapped.lat;
+    finalLng = snapped.lng;
+    console.warn(`[AI] Bad coords (${lat},${lng}) for ${country} — snapped to capital`);
+  }
+
   return {
     location: {
       city: parsed.city || DEFAULT_LOCATION.city,
       state: parsed.state || DEFAULT_LOCATION.state,
-      country: parsed.country || DEFAULT_LOCATION.country,
-      lat: typeof parsed.lat === 'number' ? parsed.lat : DEFAULT_LOCATION.lat,
-      lng: typeof parsed.lng === 'number' ? parsed.lng : DEFAULT_LOCATION.lng,
+      country,
+      lat: finalLat,
+      lng: finalLng,
     },
     category: parsed.category || 'General',
     summary: parsed.summary || title,
