@@ -271,27 +271,46 @@ async function scrapeOgImage(url) {
 
   try {
     const res = await axios.get(url, {
-      timeout: 6000,
-      maxRedirects: 3,
+      timeout: 8000,
+      maxRedirects: 5,
       headers: {
-        'User-Agent': 'NewsMap/1.0 (news aggregator)',
-        'Accept': 'text/html',
+        'User-Agent': 'Mozilla/5.0 (compatible; NewsMap/1.0; +https://newsmap.app)',
+        'Accept': 'text/html,application/xhtml+xml',
       },
-      // Only download first 50KB — enough to get <head>
-      maxContentLength: 50 * 1024,
+      // 100KB — gets <head> even on verbose pages
+      maxContentLength: 100 * 1024,
       responseType: 'text',
     });
 
     const html = typeof res.data === 'string' ? res.data : '';
 
-    // Try og:image first
-    let match = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
-    if (!match) match = html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-    // Fallback: twitter:image
-    if (!match) match = html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i);
-    if (!match) match = html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
+    // Try every common image meta tag variant
+    const patterns = [
+      /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i,
+      /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i,
+      /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i,
+      /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i,
+      /<meta[^>]+name=["']twitter:image:src["'][^>]+content=["']([^"']+)["']/i,
+      /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image:src["']/i,
+      /<meta[^>]+property=["']og:image:secure_url["'][^>]+content=["']([^"']+)["']/i,
+      /<link[^>]+rel=["']image_src["'][^>]+href=["']([^"']+)["']/i,
+    ];
 
-    const imageUrl = match ? match[1].trim() : null;
+    let imageUrl = null;
+    for (const pat of patterns) {
+      const m = html.match(pat);
+      if (m && m[1] && m[1].startsWith('http')) {
+        imageUrl = m[1].trim();
+        break;
+      }
+    }
+
+    // Last resort: first <img> in article body with decent size hint
+    if (!imageUrl) {
+      const imgMatch = html.match(/<img[^>]+src=["'](https?:\/\/[^"']+(?:jpg|jpeg|png|webp)[^"']*)["']/i);
+      if (imgMatch) imageUrl = imgMatch[1].trim();
+    }
+
     ogImageCache.set(url, imageUrl);
     return imageUrl;
   } catch (err) {

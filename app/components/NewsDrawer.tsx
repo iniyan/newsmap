@@ -17,22 +17,16 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string
 };
 
 const SOURCE_NAMES: Record<string, string> = {
-  reuters: 'Reuters',
-  ap: 'Associated Press',
-  aljazeera: 'Al Jazeera',
-  bbc_world: 'BBC World',
-  bbc_tech: 'BBC Technology',
-  nytimes: 'NY Times',
-  guardian: 'The Guardian',
-  thehindu: 'The Hindu',
-  ndtv: 'NDTV',
-  techcrunch: 'TechCrunch',
-  wired: 'Wired',
-  ft: 'Financial Times',
-  vikatan: 'Vikatan',
-  kalki: 'Kalki Online',
-  puthiyathalaimurai: 'Puthiya Thalaimurai',
-  bbc_tamil: 'BBC Tamil',
+  reuters: 'Reuters', ap: 'Associated Press', aljazeera: 'Al Jazeera',
+  bbc_world: 'BBC World', bbc_tech: 'BBC Technology', nytimes: 'NY Times',
+  guardian: 'The Guardian', thehindu: 'The Hindu', thehindu_national: 'The Hindu – National',
+  ndtv: 'NDTV', ndtv_india: 'NDTV India', toi: 'Times of India',
+  toi_india: 'Times of India', hindustan_times: 'Hindustan Times',
+  indian_express: 'Indian Express', india_today: 'India Today',
+  scroll: 'Scroll.in', wire: 'The Wire', deccan_herald: 'Deccan Herald',
+  mint: 'Mint', techcrunch: 'TechCrunch', wired: 'Wired', ft: 'Financial Times',
+  vikatan: 'Vikatan', kalki: 'Kalki Online',
+  puthiyathalaimurai: 'Puthiya Thalaimurai', bbc_tamil: 'BBC Tamil',
 };
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -84,12 +78,10 @@ export default function NewsDrawer({ news, onClose }: NewsDrawerProps) {
 
   return (
     <div
-      className="absolute right-0 top-0 h-full w-full sm:w-[420px] flex flex-col z-10"
+      className="h-full w-full flex flex-col"
       style={{
-        background: 'rgba(8,8,14,0.97)',
-        borderLeft: `1px solid ${cat.border}`,
+        background: 'rgba(8,8,14,0.99)',
         backdropFilter: 'blur(20px)',
-        boxShadow: `-8px 0 40px ${cat.glow}, -2px 0 0 ${cat.bg}`,
       }}
     >
       {/* ── Top accent bar ── */}
