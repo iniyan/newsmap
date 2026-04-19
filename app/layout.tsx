@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -15,7 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "NewsMap — Tamil News on the Map",
   description: "Explore Tamil news events geographically in real-time. News from BBC Tamil, Vikatan, Kalki, Puthiya Thalaimurai — visualised as hotspots on a live map.",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL
+    ? (process.env.NEXT_PUBLIC_SITE_URL.startsWith('http') ? process.env.NEXT_PUBLIC_SITE_URL : `https://${process.env.NEXT_PUBLIC_SITE_URL}`)
+    : 'http://localhost:3000'),
   openGraph: {
     title: "NewsMap — Tamil News on the Map",
     description: "Explore Tamil news events geographically in real-time.",
@@ -35,6 +37,9 @@ export const metadata: Metadata = {
     icon: "/favicon.ico",
     apple: "/apple-icon.png",
   },
+};
+
+export const viewport: Viewport = {
   themeColor: "#030712",
 };
 
