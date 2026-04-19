@@ -1,4 +1,5 @@
 const Groq = require('groq-sdk');
+const axios = require('axios');
 
 // Defer client creation so missing key doesn't crash on import
 let groq = null;
@@ -175,16 +176,56 @@ Respond with ONLY this JSON (no markdown fences):
   };
 }
 
-function extractImage(article) {
+// In-process OG image cache to avoid re-fetching same URL
+const ogImageCache = new Map();
+
+function extractImageFromRSS(article) {
   // Try common RSS image fields
   if (article.enclosure?.url) return article.enclosure.url;
   if (article['media:content']?.url) return article['media:content'].url;
   if (article['media:thumbnail']?.url) return article['media:thumbnail'].url;
+  // Try itunes:image or similar
+  if (article['itunes:image']?.href) return article['itunes:image'].href;
   // Try extracting from content/description HTML
   const html = article.content || article.summary || '';
   const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
   if (match) return match[1];
   return null;
+}
+
+async function scrapeOgImage(url) {
+  if (!url) return null;
+  if (ogImageCache.has(url)) return ogImageCache.get(url);
+
+  try {
+    const res = await axios.get(url, {
+      timeout: 6000,
+      maxRedirects: 3,
+      headers: {
+        'User-Agent': 'NewsMap/1.0 (news aggregator)',
+        'Accept': 'text/html',
+      },
+      // Only download first 50KB — enough to get <head>
+      maxContentLength: 50 * 1024,
+      responseType: 'text',
+    });
+
+    const html = typeof res.data === 'string' ? res.data : '';
+
+    // Try og:image first
+    let match = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+    if (!match) match = html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+    // Fallback: twitter:image
+    if (!match) match = html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i);
+    if (!match) match = html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
+
+    const imageUrl = match ? match[1].trim() : null;
+    ogImageCache.set(url, imageUrl);
+    return imageUrl;
+  } catch (err) {
+    ogImageCache.set(url, null);
+    return null;
+  }
 }
 
 async function processArticle(article, sourceId) {
@@ -194,17 +235,26 @@ async function processArticle(article, sourceId) {
     .replace(/\s+/g, ' ')
     .trim();
 
-  const imageUrl = extractImage(article);
+  // 1) Try RSS-embedded image first (fast, no extra request)
+  let imageUrl = extractImageFromRSS(article);
 
   let location, category, summary;
 
-  if (getGroq()) {
-    try {
-      const aiResult = await extractWithAI(title, description);
-      ({ location, category, summary } = aiResult);
-    } catch (err) {
-      console.warn('[AI] Groq extraction failed, using fallback:', err.message);
-    }
+  // 2) Run AI extraction + OG image scrape concurrently
+  const [aiResult, ogImage] = await Promise.allSettled([
+    getGroq() ? extractWithAI(title, description) : Promise.resolve(null),
+    !imageUrl && article.link ? scrapeOgImage(article.link) : Promise.resolve(null),
+  ]);
+
+  if (aiResult.status === 'fulfilled' && aiResult.value) {
+    ({ location, category, summary } = aiResult.value);
+  } else if (aiResult.status === 'rejected') {
+    console.warn('[AI] Groq extraction failed, using fallback:', aiResult.reason?.message);
+  }
+
+  if (!imageUrl && ogImage.status === 'fulfilled' && ogImage.value) {
+    imageUrl = ogImage.value;
+    console.log(`[image] OG scraped for "${title.slice(0, 40)}"`);
   }
 
   if (!location) location = fallbackLocation(title, description);

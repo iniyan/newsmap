@@ -85,16 +85,28 @@ export default function EventDrawer({ event, onClose }: EventDrawerProps) {
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {/* Thumbnail */}
-        {event.image_url && (
-          <div className="w-full h-44 rounded-lg overflow-hidden bg-gray-900">
+        <div className="w-full h-44 rounded-lg overflow-hidden bg-gray-900 relative">
+          {event.image_url ? (
             <img
               src={event.image_url}
               alt={event.headline}
               className="w-full h-full object-cover"
-              onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = 'none'; }}
+              onError={(e) => {
+                const img = e.target as HTMLImageElement;
+                img.style.display = 'none';
+                const placeholder = img.parentElement?.querySelector('.img-placeholder') as HTMLElement | null;
+                if (placeholder) placeholder.style.display = 'flex';
+              }}
             />
+          ) : null}
+          <div
+            className="img-placeholder absolute inset-0 flex flex-col items-center justify-center gap-2"
+            style={{ display: event.image_url ? 'none' : 'flex' }}
+          >
+            <span className={`inline-block w-3 h-3 rounded-full ${dot}`} />
+            <span className="text-xs text-gray-600 font-semibold uppercase tracking-wider">{event.category}</span>
           </div>
-        )}
+        </div>
 
         {/* Headline */}
         <h2 className="text-white font-bold text-lg leading-snug">{event.headline}</h2>
