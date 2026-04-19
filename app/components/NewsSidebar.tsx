@@ -20,8 +20,11 @@ const SOURCE_NAMES: Record<string, string> = {
   ndtv: 'NDTV', ndtv_india: 'NDTV', toi: 'Times of India',
   toi_india: 'Times of India', hindustan_times: 'HT', indian_express: 'IE',
   india_today: 'India Today', scroll: 'Scroll', wire: 'The Wire',
-  deccan_herald: 'Deccan Herald', mint: 'Mint', techcrunch: 'TechCrunch',
-  wired: 'Wired', ft: 'FT',
+  deccan_herald: 'Deccan Herald', mint: 'Mint', thequint: 'The Quint',
+  techcrunch: 'TechCrunch', wired: 'Wired', ft: 'FT',
+  vikatan: 'Vikatan', dinamani: 'Dinamani', dinamalar: 'Dinamalar',
+  puthiyathalaimurai: 'Puthiya Thalaimurai', bbc_tamil: 'BBC Tamil',
+  manorama: 'Manorama', kalki: 'Kalki',
 };
 
 function timeAgo(iso: string) {

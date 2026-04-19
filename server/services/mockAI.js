@@ -34,6 +34,31 @@ const LOCATION_DB = {
   'pune': { city: 'Pune', state: 'Maharashtra', country: 'India', lat: 18.5204, lng: 73.8567 },
   'ahmedabad': { city: 'Ahmedabad', state: 'Gujarat', country: 'India', lat: 23.0225, lng: 72.5714 },
   'india': { city: 'New Delhi', state: 'Delhi', country: 'India', lat: 20.5937, lng: 78.9629 },
+  // Tamil script
+  'சென்னை': { city: 'Chennai', state: 'Tamil Nadu', country: 'India', lat: 13.0827, lng: 80.2707 },
+  'மதுரை': { city: 'Madurai', state: 'Tamil Nadu', country: 'India', lat: 9.9252, lng: 78.1198 },
+  'கோயம்புத்தூர்': { city: 'Coimbatore', state: 'Tamil Nadu', country: 'India', lat: 11.0168, lng: 76.9558 },
+  'திருச்சி': { city: 'Tiruchirappalli', state: 'Tamil Nadu', country: 'India', lat: 10.7905, lng: 78.7047 },
+  'சேலம்': { city: 'Salem', state: 'Tamil Nadu', country: 'India', lat: 11.6643, lng: 78.1460 },
+  'திருநெல்வேலி': { city: 'Tirunelveli', state: 'Tamil Nadu', country: 'India', lat: 8.7139, lng: 77.7567 },
+  'வேலூர்': { city: 'Vellore', state: 'Tamil Nadu', country: 'India', lat: 12.9165, lng: 79.1325 },
+  'தஞ்சாவூர்': { city: 'Thanjavur', state: 'Tamil Nadu', country: 'India', lat: 10.7870, lng: 79.1378 },
+  'ஈரோடு': { city: 'Erode', state: 'Tamil Nadu', country: 'India', lat: 11.3410, lng: 77.7172 },
+  'தூத்துக்குடி': { city: 'Thoothukudi', state: 'Tamil Nadu', country: 'India', lat: 8.7642, lng: 78.1348 },
+  'டெல்லி': { city: 'New Delhi', state: 'Delhi', country: 'India', lat: 28.6139, lng: 77.2090 },
+  'மும்பை': { city: 'Mumbai', state: 'Maharashtra', country: 'India', lat: 19.0760, lng: 72.8777 },
+  'இலங்கை': { city: 'Colombo', state: '', country: 'Sri Lanka', lat: 6.9271, lng: 79.8612 },
+  // Malayalam (Kerala)
+  'thiruvananthapuram': { city: 'Thiruvananthapuram', state: 'Kerala', country: 'India', lat: 8.5241, lng: 76.9366 },
+  'trivandrum': { city: 'Thiruvananthapuram', state: 'Kerala', country: 'India', lat: 8.5241, lng: 76.9366 },
+  'kochi': { city: 'Kochi', state: 'Kerala', country: 'India', lat: 9.9312, lng: 76.2673 },
+  'cochin': { city: 'Kochi', state: 'Kerala', country: 'India', lat: 9.9312, lng: 76.2673 },
+  'kozhikode': { city: 'Kozhikode', state: 'Kerala', country: 'India', lat: 11.2588, lng: 75.7804 },
+  'calicut': { city: 'Kozhikode', state: 'Kerala', country: 'India', lat: 11.2588, lng: 75.7804 },
+  'thrissur': { city: 'Thrissur', state: 'Kerala', country: 'India', lat: 10.5276, lng: 76.2144 },
+  'kerala': { city: 'Thiruvananthapuram', state: 'Kerala', country: 'India', lat: 10.8505, lng: 76.2711 },
+  'കൊച്ചി': { city: 'Kochi', state: 'Kerala', country: 'India', lat: 9.9312, lng: 76.2673 },
+  'തിരുവനന്തപുരം': { city: 'Thiruvananthapuram', state: 'Kerala', country: 'India', lat: 8.5241, lng: 76.9366 },
   // Asia Pacific
   'sri lanka': { city: 'Colombo', state: '', country: 'Sri Lanka', lat: 6.9271, lng: 79.8612 },
   'colombo': { city: 'Colombo', state: '', country: 'Sri Lanka', lat: 6.9271, lng: 79.8612 },
@@ -137,12 +162,18 @@ const COUNTRY_BOUNDS = {
 
 function validateCoords(lat, lng, country) {
   if (typeof lat !== 'number' || typeof lng !== 'number') return false;
+  if (isNaN(lat) || isNaN(lng)) return false;
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false;
+  // Explicitly reject null island (0,0) and the prime meridian strip that causes the vertical line
+  if (Math.abs(lat) < 1 && Math.abs(lng) < 1) return false;
+  // Reject anything with lng exactly 0 — almost certainly a missing value
+  if (lng === 0) return false;
   const bounds = COUNTRY_BOUNDS[country];
   if (bounds) {
     return lat >= bounds.latMin && lat <= bounds.latMax &&
            lng >= bounds.lngMin && lng <= bounds.lngMax;
   }
+  // No bounds for this country — still valid as long as it passed the above checks
   return true;
 }
 
@@ -351,6 +382,14 @@ async function processArticle(article, sourceId) {
   if (!location) location = fallbackLocation(title, description);
   if (!category) category = fallbackCategory(title, description);
   if (!summary) summary = description.split(' ').slice(0, 60).join(' ') || title;
+
+  // Hard guard: if coordinates are still on the prime meridian (lng ≈ 0) or null-island,
+  // force fallback so we never plot that vertical line of dots on the map
+  if (Math.abs(location.lng) < 1 || location.lng === 0) {
+    const forced = fallbackLocation(title, description);
+    location = forced;
+    console.warn(`[coords] Forced fallback for "${title.slice(0, 40)}" — bad lng ${location.lng}`);
+  }
 
   return {
     event_id: `${sourceId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,

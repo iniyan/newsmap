@@ -112,6 +112,48 @@ const FEEDS = [
     lang: 'en',
   },
 
+  // ── Tamil / South Indian ─────────────────────────────────────────────
+  {
+    id: 'vikatan',
+    name: 'Vikatan',
+    url: 'https://www.vikatan.com/news/rss.xml',
+    lang: 'ta',
+  },
+  {
+    id: 'dinamani',
+    name: 'Dinamani',
+    url: 'https://www.dinamani.com/rss/allnews.xml',
+    lang: 'ta',
+  },
+  {
+    id: 'dinamalar',
+    name: 'Dinamalar',
+    url: 'https://www.dinamalar.com/rss_news.asp',
+    lang: 'ta',
+  },
+  {
+    id: 'puthiyathalaimurai',
+    name: 'Puthiya Thalaimurai',
+    url: 'https://www.puthiyathalaimurai.com/feed/',
+    lang: 'ta',
+  },
+
+  // ── Malayalam ──────────────────────────────────────────────────────
+  {
+    id: 'manorama',
+    name: 'Malayala Manorama',
+    url: 'https://www.manoramaonline.com/rss/news.xml',
+    lang: 'ml',
+  },
+
+  // ── India English (digital) ────────────────────────────────────────
+  {
+    id: 'thequint',
+    name: 'The Quint',
+    url: 'https://www.thequint.com/feeds/all-news',
+    lang: 'en',
+  },
+
   // ── Tech / Business ─────────────────────────────────────────────────
   {
     id: 'techcrunch',

@@ -24,9 +24,11 @@ const SOURCE_NAMES: Record<string, string> = {
   toi_india: 'Times of India', hindustan_times: 'Hindustan Times',
   indian_express: 'Indian Express', india_today: 'India Today',
   scroll: 'Scroll.in', wire: 'The Wire', deccan_herald: 'Deccan Herald',
-  mint: 'Mint', techcrunch: 'TechCrunch', wired: 'Wired', ft: 'Financial Times',
-  vikatan: 'Vikatan', kalki: 'Kalki Online',
+  mint: 'Mint', thequint: 'The Quint',
+  techcrunch: 'TechCrunch', wired: 'Wired', ft: 'Financial Times',
+  vikatan: 'Vikatan', dinamani: 'Dinamani', dinamalar: 'Dinamalar',
   puthiyathalaimurai: 'Puthiya Thalaimurai', bbc_tamil: 'BBC Tamil',
+  manorama: 'Malayala Manorama', kalki: 'Kalki Online',
 };
 
 const CATEGORY_ICONS: Record<string, string> = {
