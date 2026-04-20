@@ -288,8 +288,34 @@ function fallbackCategory(title, description) {
   return 'General';
 }
 
-async function extractWithAI(title, description) {
+// Source → home region hint fed to the AI
+const SOURCE_REGION_HINTS = {
+  thehindu: 'This article is from The Hindu (India). Default to India if no location is clear.',
+  thehindu_national: 'This article is from The Hindu (India). Default to India if no location is clear.',
+  ndtv: 'This article is from NDTV (India). Default to India if no location is clear.',
+  ndtv_india: 'This article is from NDTV India. Default to India if no location is clear.',
+  toi: 'This article is from Times of India. Default to India if no location is clear.',
+  toi_india: 'This article is from Times of India. Default to India if no location is clear.',
+  hindustan_times: 'This article is from Hindustan Times (India). Default to India if no location is clear.',
+  indian_express: 'This article is from Indian Express. Default to India if no location is clear.',
+  india_today: 'This article is from India Today. Default to India if no location is clear.',
+  scroll: 'This article is from Scroll.in (India). Default to India if no location is clear.',
+  wire: 'This article is from The Wire (India). Default to India if no location is clear.',
+  deccan_herald: 'This article is from Deccan Herald (India). Default to India if no location is clear.',
+  mint: 'This article is from Mint (India). Default to India if no location is clear.',
+  thequint: 'This article is from The Quint (India). Default to India if no location is clear.',
+  vikatan: 'This is a Tamil article from Vikatan (Tamil Nadu, India). Default to Chennai, Tamil Nadu if no location is clear.',
+  dinamani: 'This is a Tamil article from Dinamani (Tamil Nadu, India). Default to Chennai, Tamil Nadu if no location is clear.',
+  dinamalar: 'This is a Tamil article from Dinamalar (Tamil Nadu, India). Default to Chennai, Tamil Nadu if no location is clear.',
+  puthiyathalaimurai: 'This is a Tamil article from Puthiya Thalaimurai (Tamil Nadu, India). Default to Chennai, Tamil Nadu if no location is clear.',
+  bbc_tamil: 'This is a Tamil article from BBC Tamil. It may cover Tamil Nadu or Sri Lanka.',
+  manorama: 'This is a Malayalam article from Malayala Manorama (Kerala, India). Default to Kochi, Kerala if no location is clear.',
+  kalki: 'This is a Tamil article from Kalki (Tamil Nadu, India). Default to Chennai, Tamil Nadu if no location is clear.',
+};
+
+async function extractWithAI(title, description, sourceId) {
   const text = `${title}\n${description}`.slice(0, 600);
+  const regionHint = SOURCE_REGION_HINTS[sourceId] || '';
 
   const completion = await getGroq().chat.completions.create({
     model: MODEL,
@@ -302,14 +328,16 @@ async function extractWithAI(title, description) {
       },
       {
         role: 'user',
-        content: `Analyze this global news article and extract the primary location and category.
+        content: `Analyze this news article and extract the primary location and category.
+${regionHint ? `\nContext: ${regionHint}` : ''}
 
 Article: "${text}"
 
 Rules:
 - Use the most specific city/place mentioned in the article
 - If multiple locations, use the one most central to the story
-- lat/lng must be the actual geographic coordinates of that city (not 0,0 or ocean)
+- lat/lng must be precise geographic coordinates of that city (NOT 0,0 and NOT in the ocean)
+- Never return lng=0 or lat=0 — those are wrong
 - category must be one of: Politics, Crime, Sports, Technology, Entertainment, Weather, Business, Health, General
 
 Respond with ONLY this JSON (no markdown fences):
@@ -317,8 +345,8 @@ Respond with ONLY this JSON (no markdown fences):
   "city": "<city name in English>",
   "state": "<state/province or empty string>",
   "country": "<country name in English>",
-  "lat": <latitude as decimal, e.g. 51.5074>,
-  "lng": <longitude as decimal, e.g. -0.1278>,
+  "lat": <latitude as decimal, e.g. 13.0827>,
+  "lng": <longitude as decimal, e.g. 80.2707>,
   "category": "<category>",
   "summary": "<1-2 sentence factual English summary of the key news>"
 }`,
@@ -452,7 +480,7 @@ async function processArticle(article, sourceId) {
 
   // 2) Run AI extraction + OG image scrape concurrently
   const [aiResult, ogImage] = await Promise.allSettled([
-    getGroq() ? extractWithAI(title, description) : Promise.resolve(null),
+    getGroq() ? extractWithAI(title, description, sourceId) : Promise.resolve(null),
     !imageUrl && article.link ? scrapeOgImage(article.link) : Promise.resolve(null),
   ]);
 

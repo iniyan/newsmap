@@ -94,14 +94,18 @@ export default function NewsSidebar({ news, selected, loading, onSelect }: Props
                 <div className="px-4 pt-3 pb-1">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">Latest</span>
                 </div>
-                {rest.map((item) => (
-                  <NewsCard
-                    key={item.event_id}
-                    item={item}
-                    selected={selected?.event_id === item.event_id}
-                    onSelect={onSelect}
-                    featured={false}
-                  />
+                {rest.map((item, idx) => (
+                  <>
+                    <NewsCard
+                      key={item.event_id}
+                      item={item}
+                      selected={selected?.event_id === item.event_id}
+                      onSelect={onSelect}
+                      featured={false}
+                    />
+                    {/* Ad slot every 5 cards */}
+                    {(idx + 1) % 5 === 0 && <SidebarAd key={`ad-${idx}`} />}
+                  </>
                 ))}
               </section>
             )}
@@ -193,6 +197,52 @@ function NewsCard({
         </div>
       </div>
     </button>
+  );
+}
+
+const SIDEBAR_ADS = [
+  {
+    emoji: '🚀',
+    headline: 'Advertise on NewsMap',
+    sub: 'Reach engaged readers across India & the world.',
+    cta: 'Get started',
+    color: '#3b82f6',
+  },
+  {
+    emoji: '🔔',
+    headline: 'Never miss a story',
+    sub: 'Turn on news alerts for topics you care about.',
+    cta: 'Enable now',
+    color: '#22c55e',
+  },
+  {
+    emoji: '📊',
+    headline: 'NewsMap Premium',
+    sub: 'Deep-dive analysis, ad-free experience.',
+    cta: 'Try free',
+    color: '#a855f7',
+  },
+];
+
+let adIndex = 0;
+function SidebarAd() {
+  const ad = SIDEBAR_ADS[adIndex++ % SIDEBAR_ADS.length];
+  return (
+    <div className="mx-3 my-2 px-3 py-2.5 rounded-xl flex items-start gap-2.5"
+      style={{ background: `${ad.color}0d`, border: `1px solid ${ad.color}25` }}>
+      <span className="text-xl shrink-0">{ad.emoji}</span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1 mb-0.5">
+          <span className="text-[8px] font-bold uppercase tracking-widest text-gray-700">Ad</span>
+        </div>
+        <p className="text-[11px] font-semibold leading-snug" style={{ color: ad.color }}>{ad.headline}</p>
+        <p className="text-[10px] text-gray-600 mt-0.5 leading-snug">{ad.sub}</p>
+        <button className="mt-1 text-[10px] font-bold px-2 py-0.5 rounded-md"
+          style={{ background: `${ad.color}22`, color: ad.color }}>
+          {ad.cta} →
+        </button>
+      </div>
+    </div>
   );
 }
 

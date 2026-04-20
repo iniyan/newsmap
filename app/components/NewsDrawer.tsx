@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { NewsEvent, EventEngagement } from '@/app/types';
 import { likeEvent, bookmarkEvent } from '@/app/lib/api';
 
@@ -55,6 +55,23 @@ export default function NewsDrawer({ news, onClose }: NewsDrawerProps) {
   const [liked, setLiked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
 
+  // Swipe-to-close on mobile
+  const touchStartY = useRef<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const delta = e.changedTouches[0].clientY - touchStartY.current;
+    const scrollTop = scrollRef.current?.scrollTop ?? 0;
+    // Dismiss if swiped down ≥ 80px from the top of the scroll area
+    if (delta > 80 && scrollTop <= 0) onClose();
+    touchStartY.current = null;
+  }, [onClose]);
+
   const cat = CATEGORY_COLORS[news.category] || CATEGORY_COLORS.General;
   const timeAgo = getTimeAgo(news.published_at);
   const { label: intensityText, emoji: intensityEmoji, color: intensityColor } = intensityLabel(news.intensity_score);
@@ -63,44 +80,47 @@ export default function NewsDrawer({ news, onClose }: NewsDrawerProps) {
   async function handleLike() {
     if (liked) return;
     setLiked(true);
-    try {
-      const updated = await likeEvent(news.event_id);
-      setEng(updated);
-    } catch { setLiked(false); }
+    try { const u = await likeEvent(news.event_id); setEng(u); }
+    catch { setLiked(false); }
   }
 
   async function handleBookmark() {
     if (bookmarked) return;
     setBookmarked(true);
-    try {
-      const updated = await bookmarkEvent(news.event_id);
-      setEng(updated);
-    } catch { setBookmarked(false); }
+    try { const u = await bookmarkEvent(news.event_id); setEng(u); }
+    catch { setBookmarked(false); }
   }
 
   return (
     <div
       className="h-full w-full flex flex-col"
-      style={{
-        background: 'rgba(8,8,14,0.99)',
-        backdropFilter: 'blur(20px)',
-      }}
+      style={{ background: 'rgba(8,8,14,0.99)', backdropFilter: 'blur(20px)' }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
-      {/* ── Top accent bar ── */}
+      {/* Top accent bar */}
       <div className="h-1 w-full shrink-0" style={{ background: `linear-gradient(90deg, ${cat.bg}, transparent)` }} />
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-4 py-3 shrink-0 border-b border-white/5">
-        <div className="flex items-center gap-2.5">
-          <span className="text-lg">{catIcon}</span>
-          <div>
-            <span
-              className="text-xs font-bold uppercase tracking-widest"
-              style={{ color: cat.text }}
-            >
+        {/* Mobile: back chevron (large tap target) | Desktop: category info */}
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          {/* Back button — visible only on mobile */}
+          <button
+            onClick={onClose}
+            className="md:hidden flex items-center justify-center w-9 h-9 rounded-xl shrink-0 transition-all active:scale-95"
+            style={{ background: `${cat.bg}18`, border: `1px solid ${cat.border}`, color: cat.text }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          <span className="text-lg shrink-0">{catIcon}</span>
+          <div className="min-w-0">
+            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: cat.text }}>
               {news.category}
             </span>
-            <div className="flex items-center gap-1.5 mt-0.5">
+            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
               <span style={{ color: intensityColor }} className="text-xs font-semibold">
                 {intensityEmoji} {intensityText}
               </span>
@@ -109,19 +129,32 @@ export default function NewsDrawer({ news, onClose }: NewsDrawerProps) {
             </div>
           </div>
         </div>
+
+        {/* Desktop close button */}
         <button
           onClick={onClose}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:text-white transition-all hover:bg-white/10"
+          className="hidden md:flex w-8 h-8 items-center justify-center rounded-lg text-gray-500 hover:text-white transition-all hover:bg-white/10 shrink-0"
         >
           ✕
         </button>
+
+        {/* Mobile swipe hint — only in header */}
+        <div className="md:hidden flex flex-col items-center justify-center gap-0.5 px-2 shrink-0">
+          <div className="w-6 h-0.5 bg-white/20 rounded-full" />
+          <div className="w-4 h-0.5 bg-white/10 rounded-full" />
+        </div>
       </div>
 
       {/* ── Scrollable content ── */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" ref={scrollRef}>
 
-        {/* Thumbnail */}
-        <div className="w-full h-52 relative overflow-hidden" style={{ background: '#111118' }}>
+        {/* Swipe handle for mobile */}
+        <div className="md:hidden flex justify-center pt-2 pb-0">
+          <div className="w-10 h-1 rounded-full bg-white/10" />
+        </div>
+
+        {/* Hero image */}
+        <div className="w-full h-48 md:h-52 relative overflow-hidden" style={{ background: '#111118' }}>
           {news.image_url ? (
             <img
               src={news.image_url}
@@ -139,26 +172,24 @@ export default function NewsDrawer({ news, onClose }: NewsDrawerProps) {
             className="img-ph absolute inset-0 flex-col items-center justify-center gap-2"
             style={{ display: news.image_url ? 'none' : 'flex', background: `linear-gradient(135deg, ${cat.glow}, #111118)` }}
           >
-            <span className="text-4xl">{catIcon}</span>
+            <span className="text-5xl">{catIcon}</span>
             <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: cat.text }}>{news.category}</span>
           </div>
-          {/* Gradient overlay */}
           <div className="absolute bottom-0 left-0 right-0 h-16"
             style={{ background: 'linear-gradient(transparent, rgba(8,8,14,0.97))' }} />
-          {/* Source badge */}
           <div className="absolute top-2 left-2 px-2 py-1 rounded-md text-xs font-semibold"
             style={{ background: `${cat.bg}22`, border: `1px solid ${cat.border}`, color: cat.text }}>
             {SOURCE_NAMES[news.sources[0]?.id] || news.sources[0]?.id || 'News'}
           </div>
         </div>
 
-        {/* Content pad */}
-        <div className="px-4 pb-6 space-y-4">
+        {/* Content */}
+        <div className="px-4 pb-4 space-y-4">
 
           {/* Headline */}
           <h2 className="text-white font-bold text-lg leading-snug pt-2">{news.headline}</h2>
 
-          {/* Meta row */}
+          {/* Meta */}
           <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
             <span className="flex items-center gap-1">
               <span>📍</span>
@@ -176,6 +207,9 @@ export default function NewsDrawer({ news, onClose }: NewsDrawerProps) {
             {news.summary}
           </p>
 
+          {/* ── Ad slot ── */}
+          <AdSlot category={news.category} catColor={cat.bg} catBorder={cat.border} />
+
           {/* Intensity bar */}
           <div className="rounded-xl p-3 border border-white/5" style={{ background: 'rgba(255,255,255,0.03)' }}>
             <div className="flex justify-between items-center mb-2">
@@ -186,7 +220,7 @@ export default function NewsDrawer({ news, onClose }: NewsDrawerProps) {
             </div>
             <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
               <div
-                className="h-full rounded-full transition-all"
+                className="h-full rounded-full"
                 style={{
                   width: `${news.intensity_score}%`,
                   background: `linear-gradient(90deg, ${cat.bg}88, ${cat.bg})`,
@@ -203,7 +237,7 @@ export default function NewsDrawer({ news, onClose }: NewsDrawerProps) {
           <div className="flex items-center gap-2">
             <button
               onClick={handleLike}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
               style={{
                 background: liked ? `${cat.bg}22` : 'rgba(255,255,255,0.04)',
                 border: `1px solid ${liked ? cat.bg : 'rgba(255,255,255,0.08)'}`,
@@ -213,10 +247,9 @@ export default function NewsDrawer({ news, onClose }: NewsDrawerProps) {
               <span>{liked ? '❤️' : '🤍'}</span>
               <span>{eng.likes}</span>
             </button>
-
             <button
               onClick={handleBookmark}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
               style={{
                 background: bookmarked ? '#eab30822' : 'rgba(255,255,255,0.04)',
                 border: `1px solid ${bookmarked ? '#eab308' : 'rgba(255,255,255,0.08)'}`,
@@ -226,10 +259,9 @@ export default function NewsDrawer({ news, onClose }: NewsDrawerProps) {
               <span>{bookmarked ? '🔖' : '📌'}</span>
               <span>{eng.bookmarks}</span>
             </button>
-
-            <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600">
+            <div className="flex items-center gap-1.5 px-3 py-2 text-xs text-gray-600">
               <span>👁</span>
-              <span>{eng.views} views</span>
+              <span>{eng.views}</span>
             </div>
           </div>
 
@@ -246,10 +278,7 @@ export default function NewsDrawer({ news, onClose }: NewsDrawerProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-between px-3 py-2.5 rounded-xl transition-all group"
-                  style={{
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.06)',
-                  }}
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
                   onMouseEnter={(e) => {
                     (e.currentTarget as HTMLElement).style.background = `${cat.bg}11`;
                     (e.currentTarget as HTMLElement).style.borderColor = cat.border;
@@ -272,6 +301,59 @@ export default function NewsDrawer({ news, onClose }: NewsDrawerProps) {
           </div>
 
         </div>
+      </div>
+
+      {/* ── Mobile sticky close bar ── */}
+      <div
+        className="md:hidden shrink-0 px-4 py-3 border-t border-white/[0.06]"
+        style={{ background: 'rgba(8,8,14,0.98)' }}
+      >
+        <button
+          onClick={onClose}
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm transition-all active:scale-[0.98]"
+          style={{
+            background: `${cat.bg}18`,
+            border: `1px solid ${cat.border}`,
+            color: cat.text,
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Back to map
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Ad slot component ────────────────────────────────────────────────
+const AD_COPY = [
+  { headline: 'Stay ahead of the news.', sub: 'Get personalized alerts for stories that matter to you.', cta: 'Enable alerts', emoji: '🔔' },
+  { headline: 'Your ad reaches 50K+ readers.', sub: 'Advertise on NewsMap and connect with engaged news readers.', cta: 'Learn more', emoji: '📣' },
+  { headline: 'Read deeper, think wider.', sub: 'Explore premium analysis from expert journalists worldwide.', cta: 'Try premium', emoji: '✨' },
+];
+
+function AdSlot({ category, catColor, catBorder }: { category: string; catColor: string; catBorder: string }) {
+  const ad = AD_COPY[Math.abs(category.charCodeAt(0)) % AD_COPY.length];
+  return (
+    <div
+      className="rounded-xl px-3 py-3 flex items-start gap-3"
+      style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+    >
+      <span className="text-xl shrink-0 mt-0.5">{ad.emoji}</span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 mb-1">
+          <span className="text-[9px] font-bold uppercase tracking-widest text-gray-700">Sponsored</span>
+        </div>
+        <p className="text-xs font-semibold text-gray-300 leading-snug">{ad.headline}</p>
+        <p className="text-[11px] text-gray-600 mt-0.5 leading-snug">{ad.sub}</p>
+        <button
+          className="mt-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all"
+          style={{ background: `${catColor}18`, color: catColor, border: `1px solid ${catBorder}` }}
+        >
+          {ad.cta} →
+        </button>
       </div>
     </div>
   );
